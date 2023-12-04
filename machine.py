@@ -112,13 +112,12 @@ class MACHINE():
             best_score = float('-inf')
             best_move = None
             cache = {}
-            graph = {}
             for move in self.get_all_possible_moves():
-                self.make_move(move, True)
-                score = self.minmax(5, float('-inf'), float('inf'), False, cache, graph)
+                self.make_move(move, True, graph)
+                score = self.minmax(3, float('-inf'), float('inf'), False, cache, graph)
                 # print('=== score 출력 ===')
                 # print(score)
-                self.undo_move(move, True)
+                self.undo_move(move, True, graph)
                 if score > best_score:
                     best_score = score
                     best_move = move
@@ -127,6 +126,7 @@ class MACHINE():
                         self.check_availability([point1, point2])]
                     return random.choice(available)
             print('drawn lines', self.drawn_lines)
+            print('graph', graph)
             return best_move
 
     def check_availability(self, line):
@@ -198,7 +198,7 @@ class MACHINE():
             maxEval = float('-inf')
             for move in self.get_all_possible_moves():
                 self.make_move(move, maximizingPlayer, graph)
-                evaluation = self.minmax(depth - 1, alpha, beta, False, cache)
+                evaluation = self.minmax(depth - 1, alpha, beta, False, cache, graph)
                 self.undo_move(move, maximizingPlayer, graph)
                 maxEval = max(maxEval, evaluation)
                 alpha = max(alpha, evaluation)
@@ -211,7 +211,7 @@ class MACHINE():
             minEval = float('inf')
             for move in self.get_all_possible_moves():
                 self.make_move(move, maximizingPlayer, graph)
-                evaluation = self.minmax(depth - 1, alpha, beta, True, cache)
+                evaluation = self.minmax(depth - 1, alpha, beta, True, cache, graph)
                 self.undo_move(move, maximizingPlayer, graph)
                 minEval = min(minEval, evaluation)
                 beta = min(beta, evaluation)
@@ -234,6 +234,9 @@ class MACHINE():
 
     def undo_move(self, move, maximizingPlayer, graph):
         point1, point2 = move
+        print("graph")
+        print(graph[point1], graph[point2])
+        print((point1, point2,))
         graph[point1].remove((point1, point2))
         graph[point2].remove((point1, point2))
         # Remove the move from the list of drawn lines
@@ -326,8 +329,14 @@ class MACHINE():
         return bool(triangles)
 
     def make_move(self, move, maximizingPlayer, graph):
+        print(self.drawn_lines)
         # Add the move to the list of drawn lines
         self.drawn_lines.append(move)
+
+        point1, point2 = move
+        graph[point1].append((point1, point2,))
+        graph[point2].append((point1, point2,))
+
 
         # Update the score if this move completes a triangle
         # The `update_score` function would need to be implemented to check for this
@@ -351,6 +360,7 @@ class MACHINE():
 
     def find_new_triangles(self, new_line, graph):
         # Find all sets of two lines from the existing lines that, together with the new line, could form a triangle.
+        print(graph)
         possible_triangles = [
             (line1, line2, new_line)
             for line1 in graph[new_line[0]]
