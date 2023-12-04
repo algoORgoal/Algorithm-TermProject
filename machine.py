@@ -187,7 +187,7 @@ class MACHINE():
                 print(cache_key, cache[cache_key])
             return cache[cache_key]
 
-        if depth == 0 or self.is_game_over():
+        if depth == 0 or self.check_endgame():
             # print(self.drawn_lines)
             cache[cache_key] = self.evaluate()
             return cache[cache_key]
@@ -428,6 +428,10 @@ class MACHINE():
         # Check if point is inside the triangle
         return 0 <= a <= 1 and 0 <= b <= 1 and 0 <= c <= 1
 
+    def check_endgame(self):
+        remain_to_draw = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
+                          self.check_availability(self.turn, [point1, point2])]
+        return False if remain_to_draw else True
 
 
 
