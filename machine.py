@@ -167,7 +167,12 @@ class MACHINE():
         # print()
         # print('=== evaluate 결과 ===')
         # print(machine_score - user_score)
-        return machine_score - user_score
+        if machine_score > user_score:
+            return 1
+        elif machine_score == user_score:
+            return 0
+        else:
+            return -1
     
     def retrieve_cache_key(self, maximizingPlayer):
         tuple_lines = tuple(tuple(line) for line in self.drawn_lines)
