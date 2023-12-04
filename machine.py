@@ -108,7 +108,7 @@ class MACHINE():
             cache = {}
             for move in self.get_all_possible_moves():
                 self.make_move(move, True)
-                score = self.minmax(10, float('-inf'), float('inf'), False, cache)
+                score = self.minmax(5, float('-inf'), float('inf'), False, cache)
                 # print('=== score 출력 ===')
                 # print(score)
                 self.undo_move(move, True)
@@ -157,9 +157,6 @@ class MACHINE():
         # Higher score if more triangles can be formed.
         # Minus score if the opponent can form triangles.
         user_score, machine_score = self.evaluate_score
-        if machine_score - user_score > 0:
-            print("찾았다", machine_score, self.drawn_lines)
-            print("찾았다", user_score, self.drawn_lines)
         # print()
         # print('=== evaluate 결과 ===')
         # print(machine_score - user_score)
@@ -173,7 +170,6 @@ class MACHINE():
 
     # Organization Functions
     def organize_points(self, point_list):
-        print(point_list)
         return sorted(point_list, key=lambda x: (x[0], x[1]))
         # return point_list
 
@@ -184,8 +180,6 @@ class MACHINE():
         # print(depth)
         cache_key = self.retrieve_cache_key(maximizingPlayer)
         if cache_key in cache:
-            if cache[cache_key] > 0:
-                print(cache_key, cache[cache_key])
             return cache[cache_key]
 
         if depth == 0 or self.check_endgame():
@@ -236,7 +230,7 @@ class MACHINE():
         if move in self.drawn_lines:
             self.drawn_lines.remove(move)
         # Recalculate the score since it may have changed by removing this line
-        self.recalculate_score_after_undo(move)
+        self.recalculate_score_after_undo(move, maximizingPlayer)
 
     def recalculate_score_after_undo(self, move, maximizingPlayer):
         # Remove any triangles from the score that included this line
@@ -253,7 +247,6 @@ class MACHINE():
                 self.evaluate_score[0] -= 1  # Increase USER's score
             # Remove the triangle from the list of completed triangles
             self.triangles.remove(triangle)
-        print(self.triangles)
 
     # def find_triangles(self, lines):
     #     # List to hold the triangles found
