@@ -26,7 +26,7 @@ class MACHINE():
         self.whole_points = []
         self.location = []
         self.triangles = []  # [(a, b), (c, d), (e, f)]
-        self.turn = 0
+        self.count_turn = 0
         self.evaluate_score = [0,0]
 
     # def find_best_selection(self):
@@ -35,14 +35,15 @@ class MACHINE():
     #     return random.choice(available)
 
     def find_best_selection(self):
-        self.turn += 1
-        if(self.turn < 1):
+        print("start", self.triangles)
+        self.count_turn += 1
+        if(self.count_turn < 1):
             print("selection begins")
             # count how many times each point has been used to draw lines so far
-            points_to_drawn_times = {point: 0 for point in self.whole_points}
+            points_to_drawn_times = { point: 0 for point in self.whole_points}
 
             # see the list of connected points to each point
-            graph = {point: [] for point in self.whole_points}
+            graph = { point: [] for point in self.whole_points }
 
             for (point1, point2) in self.drawn_lines:
                 points_to_drawn_times[point1] += 1
@@ -51,39 +52,50 @@ class MACHINE():
                 graph[point2].append((point1, point2))
 
             # reverse the key-value relation
-            drawn_times_to_points = {points_to_drawn_times[point]: [] for point in points_to_drawn_times}
+            drawn_times_to_points = { points_to_drawn_times[point]: [] for point in points_to_drawn_times }
             for point in points_to_drawn_times:
                 drawn_times_to_points[points_to_drawn_times[point]].append(point)
-
+            
+        
             # draw traingle if possible
             count_maximum_drawn__times = max(list(drawn_times_to_points.keys()))
 
             available = []
-
+            
             available = self.find_lines_generating_two_triangles(graph)
             if len(available) > 0:
-                return random.choice(available)
+                return random.choice(available)        
 
             for drawn_times in range(count_maximum_drawn__times, 1, -1):
                 if drawn_times in drawn_times_to_points:
                     points = drawn_times_to_points[drawn_times]
                     for point in points:
                         lines = graph[point]
-                        available = self.find_best_triangle_lines(lines, graph)
-                        if len(available) > 0:
-                            return random.choice(available)
+                        available = available + self.find_best_triangle_lines(lines, graph)
+            
+            
+
 
             if len(available) > 0:
                 print("draw a traingle")
                 return random.choice(available)
 
             # extract points that have not been used to draw any line yet
-            points_not_drawn = drawn_times_to_points[0]
+            points_not_drawn = drawn_times_to_points[0] if 0 in drawn_times_to_points else []
 
             # select 2 points that hasn't been used to draw a line
             if len(points_not_drawn) >= 2:
                 print("draw using unused points")
                 available = self.find_available(points_not_drawn)
+            
+            # draw lines unfavorable to opponent
+            lines_unfavorable_to_opponent = []
+            for line in available:
+                if not self.can_make_triangle(line, graph):
+                    lines_unfavorable_to_opponent = lines_unfavorable_to_opponent + [line]
+            
+            if len(lines_unfavorable_to_opponent) > 0:
+                return random.choice(lines_unfavorable_to_opponent)
 
             # pick among all the possible cases
             if len(available) == 0:
@@ -93,11 +105,12 @@ class MACHINE():
         else:
             best_score = float('-inf')
             best_move = None
+            cache = {}
             for move in self.get_all_possible_moves():
                 self.make_move(move)
-                score = self.minmax(5, float('-inf'), float('inf'), False)
-                print('=== score 출력 ===')
-                print(score)
+                score = self.minmax(3, float('-inf'), float('inf'), False, cache)
+                # print('=== score 출력 ===')
+                # print(score)
                 self.undo_move(move)
                 if score > best_score:
                     best_score = score
@@ -106,6 +119,7 @@ class MACHINE():
                     available = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
                         self.check_availability([point1, point2])]
                     return random.choice(available)
+            print('drawn lines', self.drawn_lines)
             return best_move
 
     def check_availability(self, line):
@@ -144,40 +158,66 @@ class MACHINE():
         # Minus score if the opponent can form triangles.
         machine_score = len(self.find_triangles(self.drawn_lines, self.id))
         user_score = len(self.find_triangles(self.drawn_lines, "USER"))
-        print()
-        print('=== evaluate 결과 ===')
-        print(machine_score - user_score)
+        if machine_score - user_score > 0:
+            print("찾았다", machine_score, self.drawn_lines)
+            print("찾았다", user_score, self.drawn_lines)
+        # print()
+        # print('=== evaluate 결과 ===')
+        # print(machine_score - user_score)
         return machine_score - user_score
+    
+    def retrieve_cache_key(self, maximizingPlayer):
+        tuple_lines = tuple(tuple(line) for line in self.drawn_lines)
+        cache_key = (tuple(sorted(tuple_lines)), maximizingPlayer)
+        return cache_key
 
-    def minmax(self, depth, alpha, beta, maximizingPlayer):
-        print('=== minmax 함수 진입 ===')
-        print('=== depth 출력 ===')
-        print(depth)
+
+    # Organization Functions
+    def organize_points(self, point_list):
+        return sorted(point_list, key=lambda x: (x[0], x[1]))
+        # return point_list
+
+
+    def minmax(self, depth, alpha, beta, maximizingPlayer, cache = {}):
+        # print('=== minmax 함수 진입 ===')
+        # print('=== depth 출력 ===')
+        # print(depth)
+        cache_key = self.retrieve_cache_key(maximizingPlayer)
+        if cache_key in cache:
+            if cache[cache_key] > 0:
+                print(cache_key, cache[cache_key])
+            return cache[cache_key]
+
         if depth == 0 or self.is_game_over():
-            return self.evaluate()
+            # print(self.drawn_lines)
+            cache[cache_key] = self.evaluate()
+            return cache[cache_key]
 
         if maximizingPlayer:
             maxEval = float('-inf')
             for move in self.get_all_possible_moves():
                 self.make_move(move)
-                evaluation = self.minmax(depth - 1, alpha, beta, False)
+                evaluation = self.minmax(depth - 1, alpha, beta, False, cache)
                 self.undo_move(move)
                 maxEval = max(maxEval, evaluation)
                 alpha = max(alpha, evaluation)
                 if beta <= alpha:
+                    # print("alpha beta cutoff occured", self.drawn_lines)
                     break
-            return maxEval
+            cache[cache_key] = maxEval
+            return cache[cache_key]
         else:
             minEval = float('inf')
             for move in self.get_all_possible_moves():
                 self.make_move(move)
-                evaluation = self.minmax(depth - 1, alpha, beta, True)
+                evaluation = self.minmax(depth - 1, alpha, beta, True, cache)
                 self.undo_move(move)
                 minEval = min(minEval, evaluation)
                 beta = min(beta, evaluation)
                 if beta <= alpha:
                     break
-            return minEval
+            cache[cache_key] = minEval
+            return cache[cache_key]
 
     def get_all_possible_moves(self):
         # Start with all possible combinations of points for lines
@@ -185,7 +225,7 @@ class MACHINE():
 
         # Filter out combinations that are not valid moves
         possible_moves = [
-            move for move in all_combinations if self.check_availability(move)
+            self.organize_points(move) for move in all_combinations if self.check_availability(move)
         ]
 
         #print("get_all_possible_moves: ", possible_moves)
@@ -195,15 +235,16 @@ class MACHINE():
         # Remove the move from the list of drawn lines
         if move in self.drawn_lines:
             self.drawn_lines.remove(move)
-
         # Recalculate the score since it may have changed by removing this line
         self.recalculate_score_after_undo(move)
 
     def recalculate_score_after_undo(self, move):
         # Remove any triangles from the score that included this line
         # This assumes that you have a list of triangles and their corresponding lines
-        triangles_to_remove = [triangle for triangle in self.triangles if move in triangle]
 
+        triangles_to_remove = [triangle for triangle in self.triangles if move[0] in triangle and move[1] in triangle]
+
+        
         for triangle in triangles_to_remove:
             if triangle['player_id'] == self.id:
                 # If the triangle was contributing to the MACHINE's score, decrease the score
@@ -296,9 +337,8 @@ class MACHINE():
         # Update the score for each new triangle
         for triangle in new_triangles:
             # Assuming the score is indexed with 0 for USER and 1 for MACHINE
-            if self.is_triangle_valid(triangle):
-                self.evaluate_score[1] += 1  # Increment MACHINE's score
-                self.triangles.append(triangle)  # Add the triangle to the list of completed triangles
+            self.evaluate_score[1] += 1  # Increment MACHINE's score
+            self.triangles.append(triangle)  # Add the triangle to the list of completed triangles
 
     def find_new_triangles(self, new_line):
         # Find all sets of two lines from the existing lines that, together with the new line, could form a triangle.
@@ -314,7 +354,7 @@ class MACHINE():
         for lines in possible_triangles:
             if self.do_lines_form_triangle(lines):
                 triangle_points = self.get_triangle_points(lines)
-                if triangle_points and self.is_triangle_empty(triangle_points):
+                if triangle_points and self.is_triangle_valid(triangle_points):
                     new_triangles.append(triangle_points)
 
         return new_triangles
@@ -364,7 +404,7 @@ class MACHINE():
         for point in self.whole_points:
             if point in triangle:
                 continue  # Skip the vertices of the triangle
-            if self.is_point_inside_triangle2(point, triangle):
+            if self.is_point_inside_triangle(point, triangle):
                 return False
         return True
 
@@ -471,6 +511,31 @@ class MACHINE():
             triangle_lines = self.find_lines_with_point_on_line()
 
         return triangle_lines
+    
+    def can_make_triangle(self, new_line, graph):
+        [point1, point2] = new_line
+
+        lines_of_point1 = graph[point1]
+    
+        for [previous_point1, previous_point2] in lines_of_point1:
+            if self.are_points_same(point1, previous_point1) and not self.are_points_same(point2, previous_point2):
+                if self.check_availability([point2, previous_point2]):
+                    return True
+            elif self.are_points_same(point1, previous_point2) and not self.are_points_same(point2, previous_point1):
+                if self.check_availability([point2, previous_point1]):
+                    return True
+        
+        lines_of_point2 = graph[point2]
+    
+        for [previous_point1, previous_point2] in lines_of_point2:
+            if self.are_points_same(point2, previous_point1) and not self.are_points_same(point1, previous_point2):
+                if self.check_availability([point1, previous_point2]):
+                    return True
+            elif self.are_points_same(point2, previous_point2) and not self.are_points_same(point1, previous_point1):
+                if self.check_availability([point1, previous_point1]):
+                    return True
+        
+        return False
 
     def find_lines_connecting_two_triangles(self, triangle, graph):
         triangle_lines = []
@@ -520,7 +585,4 @@ class MACHINE():
     def are_points_same(self, point1, point2):
         return point1[0] == point2[0] and point1[1] == point2[1]
 
-        # Organization Functions
-    def organize_points(self, point_list):
-        point_list.sort(key=lambda x: (x[0], x[1]))
-        return point_list
+        
