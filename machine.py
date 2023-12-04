@@ -103,12 +103,19 @@ class MACHINE():
 
             return random.choice(available)
         else:
+            graph = { point: [] for point in self.whole_points }
+
+            for (point1, point2) in self.drawn_lines:
+                graph[point1].append((point1, point2))
+                graph[point2].append((point1, point2))
+
             best_score = float('-inf')
             best_move = None
             cache = {}
+            graph = {}
             for move in self.get_all_possible_moves():
                 self.make_move(move, True)
-                score = self.minmax(5, float('-inf'), float('inf'), False, cache)
+                score = self.minmax(5, float('-inf'), float('inf'), False, cache, graph)
                 # print('=== score 출력 ===')
                 # print(score)
                 self.undo_move(move, True)
@@ -174,7 +181,7 @@ class MACHINE():
         # return point_list
 
 
-    def minmax(self, depth, alpha, beta, maximizingPlayer, cache = {}):
+    def minmax(self, depth, alpha, beta, maximizingPlayer, cache, graph):
         # print('=== minmax 함수 진입 ===')
         # print('=== depth 출력 ===')
         # print(depth)
@@ -190,9 +197,9 @@ class MACHINE():
         if maximizingPlayer:
             maxEval = float('-inf')
             for move in self.get_all_possible_moves():
-                self.make_move(move, maximizingPlayer)
+                self.make_move(move, maximizingPlayer, graph)
                 evaluation = self.minmax(depth - 1, alpha, beta, False, cache)
-                self.undo_move(move, maximizingPlayer)
+                self.undo_move(move, maximizingPlayer, graph)
                 maxEval = max(maxEval, evaluation)
                 alpha = max(alpha, evaluation)
                 if beta <= alpha:
@@ -203,9 +210,9 @@ class MACHINE():
         else:
             minEval = float('inf')
             for move in self.get_all_possible_moves():
-                self.make_move(move, maximizingPlayer)
+                self.make_move(move, maximizingPlayer, graph)
                 evaluation = self.minmax(depth - 1, alpha, beta, True, cache)
-                self.undo_move(move, maximizingPlayer)
+                self.undo_move(move, maximizingPlayer, graph)
                 minEval = min(minEval, evaluation)
                 beta = min(beta, evaluation)
                 if beta <= alpha:
@@ -225,7 +232,10 @@ class MACHINE():
         #print("get_all_possible_moves: ", possible_moves)
         return possible_moves
 
-    def undo_move(self, move, maximizingPlayer):
+    def undo_move(self, move, maximizingPlayer, graph):
+        point1, point2 = move
+        graph[point1].remove((point1, point2))
+        graph[point2].remove((point1, point2))
         # Remove the move from the list of drawn lines
         if move in self.drawn_lines:
             self.drawn_lines.remove(move)
@@ -315,20 +325,20 @@ class MACHINE():
         # If any triangle is formed with the move, it can potentially complete a triangle
         return bool(triangles)
 
-    def make_move(self, move, maximizingPlayer):
+    def make_move(self, move, maximizingPlayer, graph):
         # Add the move to the list of drawn lines
         self.drawn_lines.append(move)
 
         # Update the score if this move completes a triangle
         # The `update_score` function would need to be implemented to check for this
-        self.update_score(move, maximizingPlayer)
+        self.update_score(move, maximizingPlayer, graph)
 
         # Add any other game state updates related to making a move here
         # For example, if you have a current player indicator, switch it to the other player
 
-    def update_score(self, move, maximizingPlayer):
+    def update_score(self, move, maximizingPlayer, graph):
         # Check if the new move completes any new triangles
-        new_triangles = self.find_new_triangles(move)
+        new_triangles = self.find_new_triangles(move, graph)
 
         # Update the score for each new triangle
         for triangle in new_triangles:
@@ -339,12 +349,12 @@ class MACHINE():
                 self.evaluate_score[0] += 1  # Increment USER's score
             self.triangles.append(triangle)  # Add the triangle to the list of completed triangles
 
-    def find_new_triangles(self, new_line):
+    def find_new_triangles(self, new_line, graph):
         # Find all sets of two lines from the existing lines that, together with the new line, could form a triangle.
         possible_triangles = [
             (line1, line2, new_line)
-            for line1 in self.drawn_lines
-            for line2 in self.drawn_lines
+            for line1 in graph[new_line[0]]
+            for line2 in graph[new_line[1]]
             if line1 != line2 and line1 != new_line and line2 != new_line
         ]
 
