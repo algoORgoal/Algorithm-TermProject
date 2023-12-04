@@ -156,8 +156,7 @@ class MACHINE():
     def evaluate(self):
         # Higher score if more triangles can be formed.
         # Minus score if the opponent can form triangles.
-        machine_score = len(self.find_triangles(self.drawn_lines, self.id))
-        user_score = len(self.find_triangles(self.drawn_lines, "USER"))
+        user_score, machine_score = self.evaluate_score
         if machine_score - user_score > 0:
             print("찾았다", machine_score, self.drawn_lines)
             print("찾았다", user_score, self.drawn_lines)
@@ -196,9 +195,9 @@ class MACHINE():
         if maximizingPlayer:
             maxEval = float('-inf')
             for move in self.get_all_possible_moves():
-                self.make_move(move)
+                self.make_move(move, maximizingPlayer)
                 evaluation = self.minmax(depth - 1, alpha, beta, False, cache)
-                self.undo_move(move)
+                self.undo_move(move, maximizingPlayer)
                 maxEval = max(maxEval, evaluation)
                 alpha = max(alpha, evaluation)
                 if beta <= alpha:
@@ -209,9 +208,9 @@ class MACHINE():
         else:
             minEval = float('inf')
             for move in self.get_all_possible_moves():
-                self.make_move(move)
+                self.make_move(move, maximizingPlayer)
                 evaluation = self.minmax(depth - 1, alpha, beta, True, cache)
-                self.undo_move(move)
+                self.undo_move(move, maximizingPlayer)
                 minEval = min(minEval, evaluation)
                 beta = min(beta, evaluation)
                 if beta <= alpha:
@@ -231,14 +230,14 @@ class MACHINE():
         #print("get_all_possible_moves: ", possible_moves)
         return possible_moves
 
-    def undo_move(self, move):
+    def undo_move(self, move, maximizingPlayer):
         # Remove the move from the list of drawn lines
         if move in self.drawn_lines:
             self.drawn_lines.remove(move)
         # Recalculate the score since it may have changed by removing this line
         self.recalculate_score_after_undo(move)
 
-    def recalculate_score_after_undo(self, move):
+    def recalculate_score_after_undo(self, move, maximizingPlayer):
         # Remove any triangles from the score that included this line
         # This assumes that you have a list of triangles and their corresponding lines
 
@@ -246,9 +245,14 @@ class MACHINE():
 
         
         for triangle in triangles_to_remove:
-            if triangle['player_id'] == self.id:
+            if maximizingPlayer:
+                self.evaluate_score[1] += 1  # Increment MACHINE's score
+            else:
                 # If the triangle was contributing to the MACHINE's score, decrease the score
-                self.evaluate_score[1] -= 1
+                if maximizingPlayer:
+                    self.evaluate_score[1] += 1  # Increment MACHINE's score
+                else:
+                    self.evaluate_score[0] += 1  # Increment USER's score
             # Remove the triangle from the list of completed triangles
             self.triangles.remove(triangle)
 
@@ -319,25 +323,28 @@ class MACHINE():
         # If any triangle is formed with the move, it can potentially complete a triangle
         return bool(triangles)
 
-    def make_move(self, move):
+    def make_move(self, move, maximizingPlayer):
         # Add the move to the list of drawn lines
         self.drawn_lines.append(move)
 
         # Update the score if this move completes a triangle
         # The `update_score` function would need to be implemented to check for this
-        self.update_score(move)
+        self.update_score(move, maximizingPlayer)
 
         # Add any other game state updates related to making a move here
         # For example, if you have a current player indicator, switch it to the other player
 
-    def update_score(self, move):
+    def update_score(self, move, maximizingPlayer):
         # Check if the new move completes any new triangles
         new_triangles = self.find_new_triangles(move)
 
         # Update the score for each new triangle
         for triangle in new_triangles:
             # Assuming the score is indexed with 0 for USER and 1 for MACHINE
-            self.evaluate_score[1] += 1  # Increment MACHINE's score
+            if maximizingPlayer:
+                self.evaluate_score[1] += 1  # Increment MACHINE's score
+            else:
+                self.evaluate_score[0] += 1  # Increment USER's score
             self.triangles.append(triangle)  # Add the triangle to the list of completed triangles
 
     def find_new_triangles(self, new_line):
