@@ -107,11 +107,11 @@ class MACHINE():
             best_move = None
             cache = {}
             for move in self.get_all_possible_moves():
-                self.make_move(move)
-                score = self.minmax(3, float('-inf'), float('inf'), False, cache)
+                self.make_move(move, True)
+                score = self.minmax(10, float('-inf'), float('inf'), False, cache)
                 # print('=== score 출력 ===')
                 # print(score)
-                self.undo_move(move)
+                self.undo_move(move, True)
                 if score > best_score:
                     best_score = score
                     best_move = move
@@ -173,6 +173,7 @@ class MACHINE():
 
     # Organization Functions
     def organize_points(self, point_list):
+        print(point_list)
         return sorted(point_list, key=lambda x: (x[0], x[1]))
         # return point_list
 
@@ -245,16 +246,14 @@ class MACHINE():
 
         
         for triangle in triangles_to_remove:
+            # If the triangle was contributing to the MACHINE's score, decrease the score
             if maximizingPlayer:
-                self.evaluate_score[1] += 1  # Increment MACHINE's score
+                self.evaluate_score[1] -= 1  # Decrease MACHINE's score
             else:
-                # If the triangle was contributing to the MACHINE's score, decrease the score
-                if maximizingPlayer:
-                    self.evaluate_score[1] += 1  # Increment MACHINE's score
-                else:
-                    self.evaluate_score[0] += 1  # Increment USER's score
+                self.evaluate_score[0] -= 1  # Increase USER's score
             # Remove the triangle from the list of completed triangles
             self.triangles.remove(triangle)
+        print(self.triangles)
 
     # def find_triangles(self, lines):
     #     # List to hold the triangles found
@@ -411,7 +410,7 @@ class MACHINE():
         for point in self.whole_points:
             if point in triangle:
                 continue  # Skip the vertices of the triangle
-            if self.is_point_inside_triangle(point, triangle):
+            if self.is_point_inside_triangle(point, list(combinations(triangle, 2))):
                 return False
         return True
 
@@ -430,7 +429,7 @@ class MACHINE():
 
     def check_endgame(self):
         remain_to_draw = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if
-                          self.check_availability(self.turn, [point1, point2])]
+                          self.check_availability([point1, point2])]
         return False if remain_to_draw else True
 
 
@@ -490,6 +489,8 @@ class MACHINE():
         return count_points
 
     def is_point_inside_triangle(self, point: list, lines: list) -> bool:
+        
+        
         triangle = self.organize_points(list(set(chain(*[lines[0], lines[1], lines[2]]))))
         return bool(Polygon(triangle).intersection(Point(point)))
 
