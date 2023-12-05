@@ -247,7 +247,7 @@ class MACHINE():
             for triangle in triangles_to_remove:
                 self.triangles.remove(triangle)  # Add the triangle to the list of completed triangles
             
-            
+
         elif len(triangles_to_remove) >= 1:
             if maximizingPlayer:
                 self.evaluate_score[1] -= 1  # Increment MACHINE's score
@@ -354,7 +354,7 @@ class MACHINE():
 
             for triangle in new_triangles:
                 self.triangles.append(triangle)  # Add the triangle to the list of completed triangles
-        elif len(new_triangles) > 1:
+        elif len(new_triangles) >= 1:
             if maximizingPlayer:
                 self.evaluate_score[1] += 1  # Increment MACHINE's score
             else:
