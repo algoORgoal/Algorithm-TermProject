@@ -238,6 +238,22 @@ class MACHINE():
 
         triangles_to_remove = [triangle for triangle in self.triangles if move[0] in triangle and move[1] in triangle]
 
+        if len(triangles_to_remove) >= 2:
+            if maximizingPlayer:
+                self.evaluate_score[1] -= 100  # Increment MACHINE's score
+            else:
+                self.evaluate_score[0] -= 100 # Increment USER's score
+
+            for triangle in triangles_to_remove:
+                self.triangles.remove(triangle)  # Add the triangle to the list of completed triangles
+            
+            
+        elif len(triangles_to_remove) >= 1:
+            if maximizingPlayer:
+                self.evaluate_score[1] -= 1  # Increment MACHINE's score
+            else:
+                self.evaluate_score[0] -= 1 # Increment USER's score
+            self.triangles.remove(triangle)  # Add the triangle to the list of completed triangles
         
         for triangle in triangles_to_remove:
             # If the triangle was contributing to the MACHINE's score, decrease the score
@@ -329,6 +345,24 @@ class MACHINE():
     def update_score(self, move, maximizingPlayer):
         # Check if the new move completes any new triangles
         new_triangles = self.find_new_triangles(move)
+
+        if len(new_triangles) >= 2:
+            if maximizingPlayer:
+                self.evaluate_score[1] += 100  # Increment MACHINE's score
+            else:
+                self.evaluate_score[0] += 100 # Increment USER's score
+
+            for triangle in new_triangles:
+                self.triangles.append(triangle)  # Add the triangle to the list of completed triangles
+        elif len(new_triangles) > 1:
+            if maximizingPlayer:
+                self.evaluate_score[1] += 1  # Increment MACHINE's score
+            else:
+                self.evaluate_score[0] += 1 # Increment USER's score
+
+            self.triangles.append(triangle)  # Add the triangle to the list of completed triangles
+            
+            
 
         # Update the score for each new triangle
         for triangle in new_triangles:
